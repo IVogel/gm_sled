@@ -21,6 +21,8 @@ unsafe extern "C" fn gmod13_open(state: lua_State) -> i32 {
     lua::createtable(state, 0, 1);
     lua::pushfunction(state, LDb::l_open);
     lua::setfield(state, -2, lua::cstr!("open"));
+    lua::pushstring(state, lua::cstr!("Sled 0.34.7"));
+    lua::setfield(state, -2, lua::cstr!("_VERSION"));
     lua::setfield(state, lua::GLOBALSINDEX, lua::cstr!("sled"));
     0
 }
