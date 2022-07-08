@@ -1,0 +1,11 @@
+[package]
+name = "lsled"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lua-shared = {git = "http://git.thetha.wtf/ivogel/lua-shared.git"}
+sled = "0.34.7"
