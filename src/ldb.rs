@@ -155,6 +155,41 @@ impl LDb {
         }
     }
 
+    fn lm_export(state: lua_State) -> Result<i32, Box<dyn std::error::Error>> {
+        unsafe {
+            let this = &mut *lua::Lcheckudata(state, 1, lua::cstr!("csldb")).cast::<Self>();
+            let export: Vec<(Vec<u8>, Vec<u8>, Vec<Vec<Vec<u8>>>)> = this
+                .export()
+                .into_iter()
+                .map(|(collection, name, kv)| {
+                    (
+                        collection,
+                        name,
+                        kv.into_iter().collect::<Vec<Vec<Vec<u8>>>>(),
+                    )
+                })
+                .collect();
+            let blob = bincode::serialize(&export)?;
+            lua::pushlstring(state, blob.as_ptr(), blob.len());
+            Ok(1)
+        }
+    }
+
+    fn lm_import(state: lua_State) -> Result<i32, Box<dyn std::error::Error>> {
+        unsafe {
+            let this = &mut *lua::Lcheckudata(state, 1, lua::cstr!("csldb")).cast::<Self>();
+            let blob = check_slice!(state, 2);
+            let import: Vec<(Vec<u8>, Vec<u8>, Vec<Vec<Vec<u8>>>)> = bincode::deserialize(blob)?;
+            this.import(
+                import
+                    .into_iter()
+                    .map(|(collection, name, kv)| (collection, name, kv.into_iter()))
+                    .collect(),
+            );
+            Ok(0)
+        }
+    }
+
     fn __gc(state: lua_State) -> Result<i32, Box<dyn std::error::Error>> {
         unsafe {
             let _ = lua::Lcheckudata(state, 1, lua::cstr!("csldb"))
@@ -191,6 +226,10 @@ impl LDb {
                 lua::setfield(state, -2, lua::cstr!("open_tree"));
                 lua::pushfunction(state, Self::lm_generate_id);
                 lua::setfield(state, -2, lua::cstr!("generate_id"));
+                lua::pushfunction(state, Self::lm_export);
+                lua::setfield(state, -2, lua::cstr!("export"));
+                lua::pushfunction(state, Self::lm_import);
+                lua::setfield(state, -2, lua::cstr!("import"));
             }
         }
     }
