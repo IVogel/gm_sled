@@ -4,7 +4,7 @@ use std::ptr::null;
 use lua_shared as lua;
 use lua_shared::lua_State;
 
-use crate::check_slice;
+use crate::{check_slice, insert_function};
 
 #[derive(Debug, Clone)]
 pub struct LTree(pub sled::Tree);
@@ -116,27 +116,19 @@ impl LTree {
         }
     }
 
-    pub fn metatble(state: lua_State) {
+    pub fn metatable(state: lua_State) {
         unsafe {
             if lua::Lnewmetatable(state, lua::cstr!("cslt")) {
                 lua::pushvalue(state, -1);
                 lua::setfield(state, -2, lua::cstr!("__index"));
-                lua::pushfunction(state, Self::__gc);
-                lua::setfield(state, -2, lua::cstr!("__gc"));
-                lua::pushfunction(state, Self::lm_name);
-                lua::setfield(state, -2, lua::cstr!("name"));
-                lua::pushfunction(state, Self::lm_clear);
-                lua::setfield(state, -2, lua::cstr!("clear"));
-                lua::pushfunction(state, Self::lm_get);
-                lua::setfield(state, -2, lua::cstr!("get"));
-                lua::pushfunction(state, Self::lm_insert);
-                lua::setfield(state, -2, lua::cstr!("insert"));
-                lua::pushfunction(state, Self::lm_remove);
-                lua::setfield(state, -2, lua::cstr!("remove"));
-                lua::pushfunction(state, Self::lm_range);
-                lua::setfield(state, -2, lua::cstr!("range"));
-                lua::pushfunction(state, Self::lm_scan_prefix);
-                lua::setfield(state, -2, lua::cstr!("scan_prefix"));
+                insert_function!(state, "__gc", Self::__gc);
+                insert_function!(state, "Name", Self::lm_name);
+                insert_function!(state, "Clear", Self::lm_clear);
+                insert_function!(state, "Get", Self::lm_get);
+                insert_function!(state, "Insert", Self::lm_insert);
+                insert_function!(state, "Remove", Self::lm_remove);
+                insert_function!(state, "Range", Self::lm_range);
+                insert_function!(state, "ScanPrefix", Self::lm_scan_prefix);
             }
         }
     }

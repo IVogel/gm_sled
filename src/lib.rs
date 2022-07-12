@@ -1,9 +1,11 @@
 // use std::{collections::HashMap, hash::Hash};
 
 use ldb::LDb;
+use buffer::Buffer;
 use lua_shared as lua;
 use lua_shared::lua_State;
 
+mod buffer;
 mod ldb;
 mod ltree;
 
@@ -16,11 +18,19 @@ macro_rules! check_slice {
     }};
 }
 
+#[macro_export]
+macro_rules! insert_function {
+    ($state:ident, $name:expr, $func:expr) => {
+        lua_shared::pushfunction($state, $func);
+        lua_shared::setfield($state, -2, lua::cstr!($name));
+    };
+}
+
 #[no_mangle]
 unsafe extern "C" fn gmod13_open(state: lua_State) -> i32 {
     lua::createtable(state, 0, 1);
-    lua::pushfunction(state, LDb::l_open);
-    lua::setfield(state, -2, lua::cstr!("open"));
+    insert_function!(state, "Open", LDb::l_open);
+    insert_function!(state, "Buffer", Buffer::l_new);
     lua::pushstring(state, lua::cstr!("Sled 0.34.7"));
     lua::setfield(state, -2, lua::cstr!("_VERSION"));
     lua::setfield(state, lua::GLOBALSINDEX, lua::cstr!("sled"));

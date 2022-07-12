@@ -4,7 +4,7 @@ use std::ptr::null;
 use lua_shared as lua;
 use lua_shared::lua_State;
 
-use crate::check_slice;
+use crate::{check_slice, insert_function};
 use crate::ltree::LTree;
 
 #[derive(Debug, Clone)]
@@ -28,7 +28,7 @@ impl LDb {
             let db = sled::open(std::str::from_utf8_unchecked(check_slice!(state, 1)))?;
             let ldb = lua::newuserdata(state, std::mem::size_of::<Self>()).cast::<Self>();
             ldb.write(Self(db));
-            Self::metatble(state);
+            Self::metatable(state);
             lua::setmetatable(state, -2);
         }
         Ok(1)
@@ -141,7 +141,7 @@ impl LDb {
             let tree = this.open_tree(std::str::from_utf8_unchecked(check_slice!(state, 2)))?;
             let ltree = lua::newuserdata(state, std::mem::size_of::<LTree>()).cast::<LTree>();
             ltree.write(LTree(tree));
-            LTree::metatble(state);
+            LTree::metatable(state);
             lua::setmetatable(state, -2);
             Ok(1)
         }
@@ -199,37 +199,24 @@ impl LDb {
         }
     }
 
-    fn metatble(state: lua_State) {
+    fn metatable(state: lua_State) {
         unsafe {
             if lua::Lnewmetatable(state, lua::cstr!("csldb")) {
                 lua::pushvalue(state, -1);
                 lua::setfield(state, -2, lua::cstr!("__index"));
-                lua::pushfunction(state, Self::__gc);
-                lua::setfield(state, -2, lua::cstr!("__gc"));
-                lua::pushfunction(state, Self::lm_name);
-                lua::setfield(state, -2, lua::cstr!("name"));
-                lua::pushfunction(state, Self::lm_clear);
-                lua::setfield(state, -2, lua::cstr!("clear"));
-                lua::pushfunction(state, Self::lm_get);
-                lua::setfield(state, -2, lua::cstr!("get"));
-                lua::pushfunction(state, Self::lm_insert);
-                lua::setfield(state, -2, lua::cstr!("insert"));
-                lua::pushfunction(state, Self::lm_remove);
-                lua::setfield(state, -2, lua::cstr!("remove"));
-                lua::pushfunction(state, Self::lm_range);
-                lua::setfield(state, -2, lua::cstr!("range"));
-                lua::pushfunction(state, Self::lm_scan_prefix);
-                lua::setfield(state, -2, lua::cstr!("scan_prefix"));
-                lua::pushfunction(state, Self::lm_tree_names);
-                lua::setfield(state, -2, lua::cstr!("tree_names"));
-                lua::pushfunction(state, Self::lm_open_tree);
-                lua::setfield(state, -2, lua::cstr!("open_tree"));
-                lua::pushfunction(state, Self::lm_generate_id);
-                lua::setfield(state, -2, lua::cstr!("generate_id"));
-                lua::pushfunction(state, Self::lm_export);
-                lua::setfield(state, -2, lua::cstr!("export"));
-                lua::pushfunction(state, Self::lm_import);
-                lua::setfield(state, -2, lua::cstr!("import"));
+                insert_function!(state, "__gc", Self::__gc);
+                insert_function!(state, "Name", Self::lm_name);
+                insert_function!(state, "Clear", Self::lm_clear);
+                insert_function!(state, "Get", Self::lm_get);
+                insert_function!(state, "Insert", Self::lm_insert);
+                insert_function!(state, "Remove", Self::lm_remove);
+                insert_function!(state, "Range", Self::lm_range);
+                insert_function!(state, "ScanPrefix", Self::lm_scan_prefix);
+                insert_function!(state, "TreeNames", Self::lm_tree_names);
+                insert_function!(state, "OpenTree", Self::lm_open_tree);
+                insert_function!(state, "GenerateID", Self::lm_generate_id);
+                insert_function!(state, "Export", Self::lm_export);
+                insert_function!(state, "Import", Self::lm_import);
             }
         }
     }
