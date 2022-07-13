@@ -1,7 +1,5 @@
 // use std::{collections::HashMap, hash::Hash};
 
-use std::io::Cursor;
-
 use ldb::LDb;
 use buffer::Buffer;
 use lua_shared as lua;
@@ -36,19 +34,19 @@ unsafe extern "C" fn gmod13_open(state: lua_State) -> i32 {
     lua::pushstring(state, lua::cstr!("Sled 0.34.7"));
     lua::setfield(state, -2, lua::cstr!("_VERSION"));
     lua::setfield(state, lua::GLOBALSINDEX, lua::cstr!("sled"));
-    match lua::loadx(state, &mut Cursor::new(include_str!("lib.lua")), lua::cstr!("@includes/modules/lsled.lua"), lua::cstr!("t")) {
-        Ok(_) => match lua::pcall(state, 0, 0, 0) {
-            lua::Status::RuntimeError |
-            lua::Status::MemoryError  |
-            lua::Status::Error => {lua::error(state);},
-            _ => {}
-        },
-        Err(lua::LError::MemoryError(e)) | 
-        Err(lua::LError::SyntaxError(e)) => {
-            lua::pushlstring(state, e.as_ptr(), e.as_bytes().len());
-            lua::error(state);
-        },
-        _ => {}
+    {
+        let code = include_str!("lib.lua");
+        match lua::Lloadbufferx(state, code.as_ptr(), code.as_bytes().len(), lua::cstr!("@includes/modules/lsled.lua"), lua::cstr!("t")) {
+            lua::Status::Ok => match lua::pcall(state, 0, 0, 0) {
+                lua::Status::RuntimeError |
+                lua::Status::MemoryError  |
+                lua::Status::Error => {lua::error(state);},
+                _ => {}
+            },
+            _ => {
+                lua::error(state);
+            }
+        }
     }
     0
 }
