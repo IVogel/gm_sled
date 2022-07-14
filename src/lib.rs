@@ -8,10 +8,11 @@ use lua_shared::lua_State;
 mod buffer;
 mod ldb;
 mod ltree;
+mod lua_struct;
 
 #[macro_export]
 macro_rules! check_slice {
-    ($state:ident, $index:tt) => {{
+    ($state:ident, $index:expr) => {{
         let mut len = 0;
         let str_ptr = lua_shared::Lchecklstring($state, $index, &mut len);
         std::slice::from_raw_parts(str_ptr, len)

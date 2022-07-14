@@ -4,7 +4,7 @@ use std::ptr::null;
 use lua_shared as lua;
 use lua_shared::lua_State;
 
-use crate::{check_slice, insert_function};
+use crate::{check_slice, insert_function, lua_struct};
 use crate::ltree::LTree;
 
 #[derive(Debug, Clone)]
@@ -63,10 +63,32 @@ impl LDb {
         }
     }
 
+    fn lm_get_struct(state: lua_State) -> Result<i32, Box<dyn std::error::Error>> {
+        unsafe {
+            let this = &mut *lua::Lcheckudata(state, 1, lua::cstr!("csldb")).cast::<Self>();
+            if let Some(ivec) = this.0.get(check_slice!(state, 2))? {
+                Ok(lua_struct::unpack(state, check_slice!(state, 3), &ivec)?)
+            } else {
+                lua::pushnil(state);
+                Ok(1)
+            }
+        }
+    }
+
     fn lm_insert(state: lua_State) -> Result<i32, Box<dyn std::error::Error>> {
         unsafe {
             let this = &mut *lua::Lcheckudata(state, 1, lua::cstr!("csldb")).cast::<Self>();
             this.insert(check_slice!(state, 2), check_slice!(state, 3))?;
+            Ok(0)
+        }
+    }
+
+    fn lm_insert_struct(state: lua_State) -> Result<i32, Box<dyn std::error::Error>> {
+        unsafe {
+            let this = &mut *lua::Lcheckudata(state, 1, lua::cstr!("csldb")).cast::<Self>();
+            let key = check_slice!(state, 2);
+            let value = lua_struct::pack(state, check_slice!(state, 3), 4)?;
+            this.insert(key, value)?;
             Ok(0)
         }
     }
@@ -208,7 +230,9 @@ impl LDb {
                 insert_function!(state, "Name", Self::lm_name);
                 insert_function!(state, "Clear", Self::lm_clear);
                 insert_function!(state, "Get", Self::lm_get);
+                insert_function!(state, "GetStruct", Self::lm_get_struct);
                 insert_function!(state, "Insert", Self::lm_insert);
+                insert_function!(state, "InsertStruct", Self::lm_insert_struct);
                 insert_function!(state, "Remove", Self::lm_remove);
                 insert_function!(state, "Range", Self::lm_range);
                 insert_function!(state, "ScanPrefix", Self::lm_scan_prefix);
