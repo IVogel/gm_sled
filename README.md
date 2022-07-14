@@ -19,7 +19,6 @@ cargo build --release --target x86_64-unknown-linux-gnu
 ```lua
 require("sled")
 
-local buffer = sled.Buffer(8)
 local db = sled.Open("currencydb")
 
 currencydb = {__currency = {}}
@@ -30,12 +29,7 @@ function currencydb.set(player, currency, value)
         tree = db:OpenTree(currency)
         currencydb.__currency[currency] = tree
     end
-    -- In future, it will be done almost like in newer versions of lua.
-    -- Just like string.pack and string.unpack.
-    -- example: tree:InsertStruct(player:SteamID64(), "d", value)
-    buffer:Clear()
-    buffer:WriteDouble(value)
-    tree:Insert(player:SteamID64(), buffer:GetValue())
+    tree:InsertStruct(player:SteamID64(), "d", value)
 end
 
 function currencydb.get(player, currency)
@@ -44,11 +38,7 @@ function currencydb.get(player, currency)
         tree = db:OpenTree(currency)
         currencydb.__currency[currency] = tree
     end
-    local data = tree:Get(player:SteamID64())
-    if not data then return 0 end
-    -- also: tree:GetStruct(player:SteamID64(), "d")
-    buffer:SetValue(data)
-    return buffer:ReadDouble()
+    return tree:GetStruct(player:SteamID64(), "d")
 end
 
 function currencydb.list()
