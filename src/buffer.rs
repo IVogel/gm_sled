@@ -93,7 +93,7 @@ impl Buffer {
         }
         let pos = self.1.min(self.0.len());
         let bytes_to_read = if bytes + pos > self.0.len() {
-            bytes - (bytes + pos - self.0.len())
+            self.0.len() - pos
         } else {
             bytes
         };
