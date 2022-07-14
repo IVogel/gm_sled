@@ -4,8 +4,8 @@ use std::ptr::null;
 use lua_shared as lua;
 use lua_shared::lua_State;
 
-use crate::{check_slice, insert_function, lua_struct};
 use crate::ltree::LTree;
+use crate::{check_slice, insert_function, lua_struct};
 
 #[derive(Debug, Clone)]
 pub struct LDb(pub sled::Db);

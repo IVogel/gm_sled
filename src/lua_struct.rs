@@ -1,11 +1,10 @@
 use std::ffi::c_void;
-use std::hint::unreachable_unchecked;
 use std::io::Cursor;
 use std::io::{Read, Seek, Write};
 use std::os::raw::c_uint;
 
-use lua_shared as lua;
 use lua::lua_State;
+use lua_shared as lua;
 
 use crate::check_slice;
 
@@ -42,7 +41,9 @@ fn is_digit(byte: u8) -> bool {
 }
 
 unsafe fn read_number(state: &mut ReaderState) -> Option<usize> {
-    if state.fmt.len() == 0 || !is_digit(state.fmt[0]) {return None;}
+    if state.fmt.len() == 0 || !is_digit(state.fmt[0]) {
+        return None;
+    }
     let mut result = 0;
     while state.fmt.len() > 0 && is_digit(state.fmt[0]) {
         let (opt, rest) = state.fmt.split_at(1);
@@ -73,8 +74,10 @@ unsafe fn get_option(state: &mut ReaderState) -> Option<(KOption, usize)> {
         b'c' => match read_number(state) {
             Some(len) => Some((KOption::Char, len)),
             None => {
-                lua::Lerror(state.state, lua::cstr!("missing size for format option 'c'"));
-                unreachable_unchecked();
+                lua::Lerror(
+                    state.state,
+                    lua::cstr!("missing size for format option 'c'"),
+                );
             }
         },
         b' ' => Some((KOption::NOP, 0)),
@@ -91,8 +94,11 @@ unsafe fn get_option(state: &mut ReaderState) -> Option<(KOption, usize)> {
             Some((KOption::NOP, 0))
         }
         token @ _ => {
-            lua::Lerror(state.state, lua::cstr!("invalid format option '%c'"), token as c_uint);
-            unreachable_unchecked();
+            lua::Lerror(
+                state.state,
+                lua::cstr!("invalid format option '%c'"),
+                token as c_uint,
+            );
         }
     }
 }
@@ -105,29 +111,27 @@ macro_rules! pack_number {
         match $state.endianness {
             Endianness::Little => {
                 $buffer.write(&$value.to_le_bytes())?;
-            },
+            }
             Endianness::Big => {
                 $buffer.write(&$value.to_be_bytes())?;
-            },
+            }
             Endianness::Native => {
                 $buffer.write(&$value.to_ne_bytes())?;
-            },
+            }
         }
     };
 }
 
 macro_rules! unpack_number {
-    ($state:ident, $buffer:ident, $typ:ty) => {
-        {
-            let mut data = [0; std::mem::size_of::<$typ>()];
-            $buffer.read(&mut data)?;
-            match $state.endianness {
-                Endianness::Little => <$typ>::from_le_bytes(data),
-                Endianness::Big => <$typ>::from_be_bytes(data),
-                Endianness::Native => <$typ>::from_ne_bytes(data),
-            }
+    ($state:ident, $buffer:ident, $typ:ty) => {{
+        let mut data = [0; std::mem::size_of::<$typ>()];
+        $buffer.read(&mut data)?;
+        match $state.endianness {
+            Endianness::Little => <$typ>::from_le_bytes(data),
+            Endianness::Big => <$typ>::from_be_bytes(data),
+            Endianness::Native => <$typ>::from_ne_bytes(data),
         }
-    };
+    }};
 }
 
 pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], std::io::Error> {
@@ -145,45 +149,44 @@ pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], s
             }
             if STRING_BUFFER.len() - (buffer.seek(std::io::SeekFrom::Current(0))? as usize) < size {
                 lua::Lerror(state, lua::cstr!("buffer overflow"));
-                unreachable_unchecked();
             }
             match option {
                 KOption::I8 => {
                     let value = lua::Lcheckinteger(reader_state.state, arg) as i8;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::U8 => {
                     let value = lua::Lcheckinteger(reader_state.state, arg) as u8;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::I16 => {
                     let value = lua::Lcheckinteger(reader_state.state, arg) as i16;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::U16 => {
                     let value = lua::Lcheckinteger(reader_state.state, arg) as u16;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::I32 => {
                     let value = lua::Lcheckinteger(reader_state.state, arg) as i32;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::U32 => {
                     let value = lua::Lcheckinteger(reader_state.state, arg) as u32;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::Usize => {
                     let value = lua::Lcheckinteger(reader_state.state, arg) as usize;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::Float => {
                     let value = lua::Lchecknumber(reader_state.state, arg) as f32;
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::Double => {
                     let value = lua::Lchecknumber(reader_state.state, arg);
                     pack_number!(reader_state, buffer, value);
-                },
+                }
                 KOption::Char => {
                     let str = check_slice!(state, arg);
                     if str.len() >= size {
@@ -194,23 +197,23 @@ pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], s
                             buffer.write(&[0])?;
                         }
                     }
-                },
+                }
                 KOption::String => {
                     let str = check_slice!(state, arg);
-                    if str.len() > 1 << 16 {
-                        lua::Lerror(state, lua::cstr!("string is too long"));
-                    }
-                    if (buffer.seek(std::io::SeekFrom::Current(0))? as usize) + size > STRING_BUFFER.len() {
-                        lua::Lerror(state, lua::cstr!("buffer overflow"));
+                    if (str.len() > 1 << 16 - 2)
+                        || ((buffer.seek(std::io::SeekFrom::Current(0))? as usize) + size
+                            > STRING_BUFFER.len())
+                    {
+                        lua::Largerror(state, arg, lua::cstr!("string won't fit in the buffer"));
                     }
                     pack_number!(reader_state, buffer, (str.len() as u16));
                     buffer.write(str)?;
-                },
-                KOption::NOP => {},
+                }
+                KOption::NOP => {}
             }
             arg += 1;
         }
-        
+
         Ok(&STRING_BUFFER[..(buffer.seek(std::io::SeekFrom::Current(0))? as usize)])
     }
 }
@@ -229,60 +232,59 @@ pub fn unpack(state: lua_State, fmt: &[u8], data: &[u8]) -> Result<i32, std::io:
                 continue;
             }
             if data.len() - (buffer.seek(std::io::SeekFrom::Current(0))? as usize) < size {
-                lua::Lerror(state, lua::cstr!("not enough data in the buffer"));
-                unreachable_unchecked();
+                lua::Lerror(state, lua::cstr!("data string too short"));
             }
             nrets += 1;
             match option {
                 KOption::I8 => {
                     let value = unpack_number!(reader_state, buffer, i8);
                     lua::pushinteger(state, value as _);
-                },
+                }
                 KOption::U8 => {
                     let value = unpack_number!(reader_state, buffer, u8);
                     lua::pushinteger(state, value as _);
-                },
+                }
                 KOption::I16 => {
                     let value = unpack_number!(reader_state, buffer, i16);
                     lua::pushinteger(state, value as _);
-                },
+                }
                 KOption::U16 => {
                     let value = unpack_number!(reader_state, buffer, u16);
                     lua::pushinteger(state, value as _);
-                },
+                }
                 KOption::I32 => {
                     let value = unpack_number!(reader_state, buffer, i32);
                     lua::pushinteger(state, value as _);
-                },
+                }
                 KOption::U32 => {
                     let value = unpack_number!(reader_state, buffer, u32);
                     lua::pushinteger(state, value as _);
-                },
+                }
                 KOption::Usize => {
                     let value = unpack_number!(reader_state, buffer, usize);
                     lua::pushinteger(state, value as _);
-                },
+                }
                 KOption::Float => {
                     let value = unpack_number!(reader_state, buffer, f32);
                     lua::pushnumber(state, value as _);
-                },
+                }
                 KOption::Double => {
                     let value = unpack_number!(reader_state, buffer, f64);
                     lua::pushnumber(state, value);
-                },
+                }
                 KOption::Char => {
                     let offset = buffer.seek(std::io::SeekFrom::Current(0))? as usize;
                     lua::pushlstring(state, data.as_ptr().add(offset), size);
-                },
+                }
                 KOption::String => {
                     let value = unpack_number!(reader_state, buffer, u16);
                     let offset = buffer.seek(std::io::SeekFrom::Current(0))? as usize;
                     if offset + value as usize > data.len() {
-                        lua::Lerror(state, lua::cstr!("not enough data in the buffer"));
+                        lua::Lerror(state, lua::cstr!("data string too short"));
                     }
                     lua::pushlstring(state, data.as_ptr().add(offset), value as _);
-                },
-                KOption::NOP => {},
+                }
+                KOption::NOP => {}
             }
         }
         Ok(nrets)

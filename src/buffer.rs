@@ -324,8 +324,8 @@ impl Buffer {
                     let mut buffer = Self::new(data.len());
                     buffer.0.extend_from_slice(data);
                     buffer
-                },
-                _ => {Self::new(0)}
+                }
+                _ => Self::new(0),
             };
             let udata = lua::newuserdata(state, std::mem::size_of::<Self>()).cast::<Self>();
             udata.write(buffer);

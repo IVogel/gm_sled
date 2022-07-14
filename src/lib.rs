@@ -1,7 +1,7 @@
 // use std::{collections::HashMap, hash::Hash};
 
-use ldb::LDb;
 use buffer::Buffer;
+use ldb::LDb;
 use lua_shared as lua;
 use lua_shared::lua_State;
 
@@ -37,11 +37,17 @@ unsafe extern "C" fn gmod13_open(state: lua_State) -> i32 {
     lua::setfield(state, lua::GLOBALSINDEX, lua::cstr!("sled"));
     {
         let code = include_str!("lib.lua");
-        match lua::Lloadbufferx(state, code.as_ptr(), code.as_bytes().len(), lua::cstr!("@includes/modules/lsled.lua"), lua::cstr!("t")) {
+        match lua::Lloadbufferx(
+            state,
+            code.as_ptr(),
+            code.as_bytes().len(),
+            lua::cstr!("@includes/modules/lsled.lua"),
+            lua::cstr!("t"),
+        ) {
             lua::Status::Ok => match lua::pcall(state, 0, 0, 0) {
-                lua::Status::RuntimeError |
-                lua::Status::MemoryError  |
-                lua::Status::Error => {lua::error(state);},
+                lua::Status::RuntimeError | lua::Status::MemoryError | lua::Status::Error => {
+                    lua::error(state);
+                }
                 _ => {}
             },
             _ => {
