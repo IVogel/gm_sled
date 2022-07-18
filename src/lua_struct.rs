@@ -37,7 +37,7 @@ struct ReaderState<'a> {
 }
 
 fn is_digit(byte: u8) -> bool {
-    byte >= b'0' && byte <= b'9'
+    byte ^ b'0' < 10
 }
 
 unsafe fn read_number(state: &mut ReaderState) -> Option<usize> {
