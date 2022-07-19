@@ -45,10 +45,10 @@ impl LTree {
             let this = &mut *lua::Lcheckudata(state, 1, lua::cstr!("cslt")).cast::<Self>();
             if let Some(ivec) = this.0.get(check_slice!(state, 2))? {
                 lua::pushlstring(state, ivec.as_ptr(), ivec.len());
+                Ok(1)
             } else {
-                lua::pushnil(state)
+                Ok(0)
             }
-            Ok(1)
         }
     }
 
@@ -71,8 +71,7 @@ impl LTree {
                     }
                 }
             } else {
-                lua::pushnil(state);
-                Ok(1)
+                Ok(0)
             }
         }
     }

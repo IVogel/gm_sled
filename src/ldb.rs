@@ -83,8 +83,7 @@ impl LDb {
                     }
                 }
             } else {
-                lua::pushnil(state);
-                Ok(1)
+                Ok(0)
             }
         }
     }
