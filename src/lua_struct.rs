@@ -1,5 +1,5 @@
 use std::ffi::c_void;
-use std::io::Cursor;
+use std::io::{self, Cursor};
 use std::io::{Read, Seek, Write};
 use std::os::raw::c_uint;
 
@@ -53,71 +53,74 @@ unsafe fn read_number(state: &mut ReaderState) -> Option<usize> {
     Some(result)
 }
 
-unsafe fn get_option(state: &mut ReaderState) -> Option<(KOption, usize)> {
+#[derive(Debug)]
+pub enum StructError {
+    Error(*const u8),
+    ArgError(i32, *const u8),
+    InvalidFormatOption(*const u8, c_uint),
+    IOError(io::Error),
+}
+
+impl From<std::io::Error> for StructError {
+    fn from(e: std::io::Error) -> Self {
+        StructError::IOError(e)
+    }
+}
+
+unsafe fn get_option(state: &mut ReaderState) -> Result<Option<(KOption, usize)>, StructError> {
     if state.fmt.len() == 0 {
-        return None;
+        return Ok(None);
     }
     let (opt, rest) = state.fmt.split_at(1);
     state.fmt = rest;
     match opt[0] {
-        b'b' => Some((KOption::I8, std::mem::size_of::<i8>())),
-        b'B' => Some((KOption::U8, std::mem::size_of::<u8>())),
-        b'h' => Some((KOption::I16, std::mem::size_of::<i16>())),
-        b'H' => Some((KOption::U16, std::mem::size_of::<u16>())),
-        b'l' => Some((KOption::I32, std::mem::size_of::<i32>())),
-        b'L' => Some((KOption::U32, std::mem::size_of::<u32>())),
-        b'T' => Some((KOption::Usize, std::mem::size_of::<usize>())),
-        b'f' => Some((KOption::Float, std::mem::size_of::<f32>())),
-        b'd' => Some((KOption::Double, std::mem::size_of::<f64>())),
-        b'n' => Some((KOption::Double, std::mem::size_of::<f64>())),
-        b's' => Some((KOption::String, std::mem::size_of::<u16>())),
+        b'b' => Ok(Some((KOption::I8, std::mem::size_of::<i8>()))),
+        b'B' => Ok(Some((KOption::U8, std::mem::size_of::<u8>()))),
+        b'h' => Ok(Some((KOption::I16, std::mem::size_of::<i16>()))),
+        b'H' => Ok(Some((KOption::U16, std::mem::size_of::<u16>()))),
+        b'l' => Ok(Some((KOption::I32, std::mem::size_of::<i32>()))),
+        b'L' => Ok(Some((KOption::U32, std::mem::size_of::<u32>()))),
+        b'T' => Ok(Some((KOption::Usize, std::mem::size_of::<usize>()))),
+        b'f' => Ok(Some((KOption::Float, std::mem::size_of::<f32>()))),
+        b'd' => Ok(Some((KOption::Double, std::mem::size_of::<f64>()))),
+        b'n' => Ok(Some((KOption::Double, std::mem::size_of::<f64>()))),
+        b's' => Ok(Some((KOption::String, std::mem::size_of::<u16>()))),
         b'c' => match read_number(state) {
-            Some(len) => Some((KOption::Char, len)),
-            None => {
-                lua::Lerror(
-                    state.state,
-                    lua::cstr!("missing size for format option 'c'"),
-                );
-            }
+            Some(len) => Ok(Some((KOption::Char, len))),
+            None => Err(StructError::Error(lua::cstr!(
+                "missing size for format option 'c'"
+            ))),
         },
-        b' ' => Some((KOption::NOP, 0)),
+        b' ' => Ok(Some((KOption::NOP, 0))),
         b'<' => {
             state.endianness = Endianness::Little;
-            Some((KOption::NOP, 0))
+            Ok(Some((KOption::NOP, 0)))
         }
         b'>' => {
             state.endianness = Endianness::Big;
-            Some((KOption::NOP, 0))
+            Ok(Some((KOption::NOP, 0)))
         }
         b'=' => {
             state.endianness = Endianness::Native;
-            Some((KOption::NOP, 0))
+            Ok(Some((KOption::NOP, 0)))
         }
-        token @ _ => {
-            lua::Lerror(
-                state.state,
-                lua::cstr!("invalid format option '%c'"),
-                token as c_uint,
-            );
-        }
+        token @ _ => Err(StructError::InvalidFormatOption(
+            lua::cstr!("invalid format option '%c'"),
+            token as c_uint,
+        )),
     }
 }
 
 // I don't fucking care. luaL_Buffer is allocated on the stack.
+// At the same time, this buffer is two times bigger than lua's string buffer.
 static mut STRING_BUFFER: [u8; 65536] = [0; 65536];
 
 macro_rules! pack_number {
     ($state:ident, $buffer:ident, $value:tt) => {
         match $state.endianness {
-            Endianness::Little => {
-                $buffer.write(&$value.to_le_bytes())?;
-            }
-            Endianness::Big => {
-                $buffer.write(&$value.to_be_bytes())?;
-            }
-            Endianness::Native => {
-                $buffer.write(&$value.to_ne_bytes())?;
-            }
+            Endianness::Little => $buffer.write(&$value.to_le_bytes())?,
+            Endianness::Big => $buffer.write(&$value.to_be_bytes())?,
+            Endianness::Native => $buffer.write(&$value.to_ne_bytes())?,
         }
     };
 }
@@ -134,7 +137,7 @@ macro_rules! unpack_number {
     }};
 }
 
-pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], std::io::Error> {
+pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], StructError> {
     unsafe {
         let mut arg = start;
         let mut reader_state = ReaderState {
@@ -143,12 +146,12 @@ pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], s
             fmt: fmt,
         };
         let mut buffer = Cursor::new(&mut STRING_BUFFER[..]);
-        while let Some((option, size)) = get_option(&mut reader_state) {
+        while let Some((option, size)) = get_option(&mut reader_state)? {
             if let KOption::NOP = option {
                 continue;
             }
             if STRING_BUFFER.len() - (buffer.seek(std::io::SeekFrom::Current(0))? as usize) < size {
-                lua::Lerror(state, lua::cstr!("buffer overflow"));
+                return Err(StructError::Error(lua::cstr!("buffer overflow")));
             }
             match option {
                 KOption::I8 => {
@@ -204,7 +207,10 @@ pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], s
                         || ((buffer.seek(std::io::SeekFrom::Current(0))? as usize) + size
                             > STRING_BUFFER.len())
                     {
-                        lua::Largerror(state, arg, lua::cstr!("string won't fit in the buffer"));
+                        return Err(StructError::ArgError(
+                            arg,
+                            lua::cstr!("string won't fit in the buffer"),
+                        ));
                     }
                     pack_number!(reader_state, buffer, (str.len() as u16));
                     buffer.write(str)?;
@@ -218,7 +224,7 @@ pub fn pack(state: lua_State, fmt: &[u8], start: i32) -> Result<&'static [u8], s
     }
 }
 
-pub fn unpack(state: lua_State, fmt: &[u8], data: &[u8]) -> Result<i32, std::io::Error> {
+pub fn unpack(state: lua_State, fmt: &[u8], data: &[u8]) -> Result<i32, StructError> {
     unsafe {
         let mut nrets = 0;
         let mut reader_state = ReaderState {
@@ -227,12 +233,12 @@ pub fn unpack(state: lua_State, fmt: &[u8], data: &[u8]) -> Result<i32, std::io:
             fmt: fmt,
         };
         let mut buffer = Cursor::new(data);
-        while let Some((option, size)) = get_option(&mut reader_state) {
+        while let Some((option, size)) = get_option(&mut reader_state)? {
             if let KOption::NOP = option {
                 continue;
             }
             if data.len() - (buffer.seek(std::io::SeekFrom::Current(0))? as usize) < size {
-                lua::Lerror(state, lua::cstr!("data string too short"));
+                return Err(StructError::Error(lua::cstr!("data string too short")));
             }
             nrets += 1;
             match option {
@@ -280,8 +286,9 @@ pub fn unpack(state: lua_State, fmt: &[u8], data: &[u8]) -> Result<i32, std::io:
                     let value = unpack_number!(reader_state, buffer, u16);
                     let offset = buffer.seek(std::io::SeekFrom::Current(0))? as usize;
                     if offset + value as usize > data.len() {
-                        lua::Lerror(state, lua::cstr!("data string too short"));
+                        return Err(StructError::Error(lua::cstr!("data string too short")));
                     }
+                    buffer.seek(std::io::SeekFrom::Current(value as _))?;
                     lua::pushlstring(state, data.as_ptr().add(offset), value as _);
                 }
                 KOption::NOP => {}

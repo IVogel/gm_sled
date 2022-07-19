@@ -9,23 +9,7 @@ mod buffer;
 mod ldb;
 mod ltree;
 mod lua_struct;
-
-#[macro_export]
-macro_rules! check_slice {
-    ($state:ident, $index:expr) => {{
-        let mut len = 0;
-        let str_ptr = lua_shared::Lchecklstring($state, $index, &mut len);
-        std::slice::from_raw_parts(str_ptr, len)
-    }};
-}
-
-#[macro_export]
-macro_rules! insert_function {
-    ($state:ident, $name:expr, $func:expr) => {
-        lua_shared::pushfunction($state, $func);
-        lua_shared::setfield($state, -2, lua::cstr!($name));
-    };
-}
+mod macros;
 
 #[no_mangle]
 unsafe extern "C" fn gmod13_open(state: lua_State) -> i32 {
