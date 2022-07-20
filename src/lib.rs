@@ -1,5 +1,3 @@
-// use std::{collections::HashMap, hash::Hash};
-
 use buffer::Buffer;
 use ldb::LDb;
 use lua_shared as lua;
@@ -18,7 +16,7 @@ unsafe extern "C" fn gmod13_open(state: lua_State) -> i32 {
     insert_function!(state, "Buffer", Buffer::l_new);
     lua::pushstring(state, lua::cstr!("Sled 0.34.7"));
     lua::setfield(state, -2, lua::cstr!("_VERSION"));
-    lua::setfield(state, lua::GLOBALSINDEX, lua::cstr!("sled"));
+    lua::setglobal!(state, lua::cstr!("sled"));
     {
         let code = include_str!("lib.lua");
         match lua::Lloadbufferx(
