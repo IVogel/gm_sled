@@ -26,12 +26,16 @@ unsafe extern "C" fn gmod13_open(state: lua_State) -> i32 {
             lua::cstr!("@includes/modules/lsled.lua"),
             lua::cstr!("t"),
         ) {
-            lua::Status::Ok => match lua::pcall(state, 0, 0, 0) {
-                lua::Status::RuntimeError | lua::Status::MemoryError | lua::Status::Error => {
-                    lua::error(state);
+            lua::Status::Ok => {
+                ldb::LDb::metatable(state);
+                ltree::LTree::metatable(state);
+                match lua::pcall(state, 2, 0, 0) {
+                    lua::Status::RuntimeError | lua::Status::MemoryError | lua::Status::Error => {
+                        lua::error(state);
+                    }
+                    _ => {}
                 }
-                _ => {}
-            },
+            }
             _ => {
                 lua::error(state);
             }

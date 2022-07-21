@@ -186,37 +186,35 @@ impl LTree {
         }
     }
 
-    pub fn metatable(state: lua_State) {
-        unsafe {
-            if lua::Lnewmetatable(state, lua::cstr!("cslt")) {
-                lua::pushvalue(state, -1);
-                lua::setfield(state, -2, lua::cstr!("__index"));
-                insert_function!(state, "__gc", Self::__gc);
-                insert_function!(state, "Name", Self::lm_name);
-                insert_function!(state, "Clear", Self::lm_clear);
-                insert_function!(state, "Get", Self::lm_get);
-                insert_function!(state, "GetStruct", Self::lm_get_struct);
-                insert_function!(state, "Insert", Self::lm_insert);
-                insert_function!(state, "InsertStruct", Self::lm_insert_struct);
-                insert_function!(state, "Remove", Self::lm_remove);
-                insert_function!(state, "Range", Self::lm_range);
-                insert_function!(state, "ScanPrefix", Self::lm_scan_prefix);
-                insert_function!(state, "Flush", Self::lm_flush);
-                insert_function!(state, "Checksum", Self::lm_checksum);
-                insert_function!(state, "ContainsKey", Self::lm_contains_key);
-                insert_function!(state, "GetLT", Self::lm_get_lt);
-                insert_function!(state, "GetLTStruct", Self::lm_get_lt_struct);
-                insert_function!(state, "GetGT", Self::lm_get_gt);
-                insert_function!(state, "GetGTStruct", Self::lm_get_gt_struct);
-                insert_function!(state, "First", Self::lm_first);
-                insert_function!(state, "FirstStruct", Self::lm_first_struct);
-                insert_function!(state, "Last", Self::lm_last);
-                insert_function!(state, "LastStruct", Self::lm_last_struct);
-                insert_function!(state, "PopMax", Self::lm_pop_max);
-                insert_function!(state, "PopMaxStruct", Self::lm_pop_max_struct);
-                insert_function!(state, "PopMin", Self::lm_pop_min);
-                insert_function!(state, "PopMinStruct", Self::lm_pop_min_struct);
-            }
+    pub unsafe fn metatable(state: lua_State) {
+        if lua::Lnewmetatable(state, lua::cstr!("cslt")) {
+            lua::pushvalue(state, -1);
+            lua::setfield(state, -2, lua::cstr!("__index"));
+            insert_function!(state, "__gc", Self::__gc);
+            insert_function!(state, "Name", Self::lm_name);
+            insert_function!(state, "Clear", Self::lm_clear);
+            insert_function!(state, "Get", Self::lm_get);
+            insert_function!(state, "GetStruct", Self::lm_get_struct);
+            insert_function!(state, "Insert", Self::lm_insert);
+            insert_function!(state, "InsertStruct", Self::lm_insert_struct);
+            insert_function!(state, "Remove", Self::lm_remove);
+            insert_function!(state, "Range", Self::lm_range);
+            insert_function!(state, "ScanPrefix", Self::lm_scan_prefix);
+            insert_function!(state, "Flush", Self::lm_flush);
+            insert_function!(state, "Checksum", Self::lm_checksum);
+            insert_function!(state, "ContainsKey", Self::lm_contains_key);
+            insert_function!(state, "GetLT", Self::lm_get_lt);
+            insert_function!(state, "GetLTStruct", Self::lm_get_lt_struct);
+            insert_function!(state, "GetGT", Self::lm_get_gt);
+            insert_function!(state, "GetGTStruct", Self::lm_get_gt_struct);
+            insert_function!(state, "First", Self::lm_first);
+            insert_function!(state, "FirstStruct", Self::lm_first_struct);
+            insert_function!(state, "Last", Self::lm_last);
+            insert_function!(state, "LastStruct", Self::lm_last_struct);
+            insert_function!(state, "PopMax", Self::lm_pop_max);
+            insert_function!(state, "PopMaxStruct", Self::lm_pop_max_struct);
+            insert_function!(state, "PopMin", Self::lm_pop_min);
+            insert_function!(state, "PopMinStruct", Self::lm_pop_min_struct);
         }
     }
 }
