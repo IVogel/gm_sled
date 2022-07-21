@@ -10,9 +10,17 @@ Compilation for main Garry's Mod branch:
 ```bash
 cargo build --release --target i686-unknown-linux-gnu
 ```
+or for windows
+```bash
+cargo build --release --target i686-pc-windows-msvc
+```
 Compilation for x86-x64 branch:
 ```bash
 cargo build --release --target x86_64-unknown-linux-gnu
+```
+or for windows
+```bash
+cargo build --release --target x86_64-pc-windows-msvc
 ```
 
 # Example usage (but not really good example)
