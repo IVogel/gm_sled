@@ -289,9 +289,9 @@ impl LDb {
 
     fn __gc(state: lua_State) -> Result<i32, Box<dyn std::error::Error>> {
         unsafe {
-            let _ = lua::Lcheckudata(state, 1, lua::cstr!("csldb"))
+            lua::Lcheckudata(state, 1, lua::cstr!("csldb"))
                 .cast::<Self>()
-                .read();
+                .drop_in_place();
             Ok(0)
         }
     }
